@@ -22,4 +22,6 @@ This test uses the internal RTC and shows the preconfigured epoch timestamp as a
 | B7        | OLED's SDA[^1]          |
 | B12       | Relay's Iɴ1             |
 
+![Picture](Picture.jpg)
+
 [^1]: A pull-up resistor (1KΩ or higher) might be needed.
