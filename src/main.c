@@ -13,11 +13,7 @@
 // Variables
 
 // RTC stuff
-volatile static unsigned char month_days[12] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
-static const unsigned char week_days[7] = { 4,5,6,0,1,2,3 };
-//Thu=4, Fri=5, Sat=6, Sun=0, Mon=1, Tue=2, Wed=3
-
-static const char *months[] = {
+const char *months[] = {
   NULL,
   "January",
   "February",
@@ -33,7 +29,7 @@ static const char *months[] = {
   "December"
 };
 
-static const char *days[] = {
+const char *days[] = {
   "Sunday",
   "Monday",
   "Tuesday",
@@ -43,16 +39,13 @@ static const char *days[] = {
   "Saturday"
 };
 
-volatile unsigned char
-ntp_hour, ntp_minute, ntp_second, ntp_week_day, ntp_date, ntp_month, leap_days, leap_year_ind;
+volatile uint8_t
+ntp_hour, ntp_minute, ntp_second, ntp_week_day, ntp_date, ntp_month;
 
-volatile unsigned short temp_days;
-
-volatile unsigned int
-ntp_year, days_since_epoch, day_of_year;
+volatile uint16_t ntp_year;
 
 // Screen status
-volatile static unsigned char oled_ready = 0;
+volatile uint8_t oled_ready = 0;
 
 // -------------------------------------------------------------------------------------------------
 // ISRs
@@ -217,11 +210,15 @@ static inline void rtc_init()
 // Taken from: https://github.com/sidsingh78/EPOCH-to-time-date-converter/blob/master/epoch_conv.c
 static inline void toDate(uint32_t epoch)
 {
-  leap_days = 0;
-  leap_year_ind = 0;
+  uint8_t month_days[12] = { 31,28,31,30,31,30,31,31,30,31,30,31 };
+  const uint8_t week_days[7] = { 4,5,6,0,1,2,3 };
+  //Thu=4, Fri=5, Sat=6, Sun=0, Mon=1, Tue=2, Wed=3
 
-  // Add or substract time zone here. 
-  epoch -= 18000; //GMT -5:00 = -18000 seconds 
+  uint8_t leap_year_ind = 0;
+  uint16_t temp_days = 0;
+
+  // Add or substract time zone here.
+  epoch -= 18000; //GMT -5:00 = -18000 seconds
 
   ntp_second = epoch % 60;
   epoch /= 60;
@@ -230,45 +227,33 @@ static inline void toDate(uint32_t epoch)
   ntp_hour = epoch % 24;
   epoch /= 24;
 
-  days_since_epoch = epoch;      //number of days since epoch
-  ntp_week_day = week_days[days_since_epoch % 7];  //Calculating WeekDay
+  // After here epoch is day of year
+  ntp_week_day = week_days[epoch % 7];  //Calculating WeekDay
 
   // calculate day of year - subtract days (and increment years) until days are less than the year's total number of days...
-  day_of_year = days_since_epoch;
   ntp_year = 1970;
   leap_year_ind = 0;
-  while (((day_of_year >= 365) && (leap_year_ind == 0)) || ((day_of_year >= 366) && (leap_year_ind == 1)))
+  while (((epoch >= 365) && (leap_year_ind == 0)) || ((epoch >= 366) && (leap_year_ind == 1)))
   {
-    if (leap_year_ind)
-    {
-      day_of_year -= 366;
-      leap_days++;
-    }
-    else day_of_year -= 365;
+    if (leap_year_ind) epoch -= 366;
+    else epoch -= 365;
     ntp_year++;
     leap_year_ind = (((ntp_year % 4 == 0) && (ntp_year % 100 != 0)) || (ntp_year % 400 == 0));
   }
-  day_of_year = day_of_year + 1;
+  epoch++;
 
-  if (leap_year_ind) // in a leap year?
-  {
-    month_days[1] = 29;     //February = 29 days for leap years
-
-    // if on or beyond February 29, count this year's leap day
-    if (day_of_year >= 60) leap_days++;
-  }
+  // in a leap year?
+  if (leap_year_ind) month_days[1] = 29; //February = 29 days for leap years
   else month_days[1] = 28; //February = 28 days for non-leap years
-
-  temp_days = 0;
 
   for (ntp_month = 0; ntp_month <= 11; ntp_month++) //calculating current Month
   {
-    if (day_of_year <= temp_days) break;
-    temp_days = temp_days + month_days[ntp_month];
+    if (epoch <= temp_days) break;
+    temp_days += month_days[ntp_month];
   }
 
-  temp_days = temp_days - month_days[ntp_month - 1]; //calculating current Date
-  ntp_date = day_of_year - temp_days;
+  temp_days -= month_days[ntp_month - 1]; //calculating current Date
+  ntp_date = epoch - temp_days;
 }
 
 // -------------------------------------------------------------------------------------------------
