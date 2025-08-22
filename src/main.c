@@ -187,11 +187,6 @@ static inline void rtc_init()
     RTC->ALRMH = 0x68A5;
     RTC->ALRML = 0x3A9F;
 
-    // Enable one-second and alarm interrupts
-    while ( !(RTC->CTLRL & RTC_FLAG_RTOFF) );
-    RTC->CTLRH |= (RTC_CTLRH_SECIE | RTC_CTLRH_ALRIE);
-    NVIC_EnableIRQ(RTC_IRQn);
-
     // Exit configuration mode and actually start RTC
     while ( !(RTC->CTLRL & RTC_FLAG_RTOFF) );
     RTC->CTLRL &=~ RTC_CTLRL_CNF;
@@ -200,6 +195,11 @@ static inline void rtc_init()
   // IDK if it actually needed, but in RM:
   // "after the PB1 is reset or PB1 clock is stopped, the bit should be reset firstly"
   RTC->CTLRL &=~ RTC_CTLRL_RSF;
+
+  // Enable one-second and alarm interrupts
+  while ( !(RTC->CTLRL & RTC_FLAG_RTOFF) );
+  RTC->CTLRH |= (RTC_CTLRH_SECIE | RTC_CTLRH_ALRIE);
+  NVIC_EnableIRQ(RTC_IRQn);
 
   // Wait for sync so when performing read we get valid counter value
   while ( !(RTC->CTLRL & RTC_CTLRL_RSF) );
